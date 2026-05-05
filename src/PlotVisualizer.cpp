@@ -7,7 +7,11 @@
 #include <sstream>
 
 PlotVisualizerSFML3::PlotVisualizerSFML3(int width, int height, const std::string& title)
+#if SFML_VERSION_MAJOR >= 3
     : window(sf::VideoMode({static_cast<unsigned int>(width), static_cast<unsigned int>(height)}), title)
+#else
+    : window(sf::VideoMode(width, height), title)
+#endif
 {
     loadFont();
     if (!font.hasGlyph('A'))
@@ -28,7 +32,11 @@ void PlotVisualizerSFML3::loadFont()
 
     for (const auto& path : fontPaths)
     {
+#if SFML_VERSION_MAJOR >= 3
         if (font.openFromFile(path))
+#else
+        if (font.loadFromFile(path))
+#endif
         {
             std::cout << "Font loaded: " << path << std::endl;
             return;
@@ -93,10 +101,17 @@ void PlotVisualizerSFML3::initialize(const std::vector<MomentPoint>& eulerPoints
     initialized = true;
 }
 
+#if SFML_VERSION_MAJOR >= 3
 std::optional<sf::Event> PlotVisualizerSFML3::pollEvent()
 {
     return window.pollEvent();
 }
+#else
+bool PlotVisualizerSFML3::pollEvent(sf::Event& event)
+{
+    return window.pollEvent(event);
+}
+#endif
 
 bool PlotVisualizerSFML3::isOpen() const
 {

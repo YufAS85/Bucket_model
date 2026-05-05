@@ -5,7 +5,11 @@
 #include <sstream>
 
 BucketVisualizerSFML3::BucketVisualizerSFML3(int width, int height, const std::string& title)
+#if SFML_VERSION_MAJOR >= 3
     : window(sf::VideoMode({static_cast<unsigned int>(width), static_cast<unsigned int>(height)}), title)
+#else
+    : window(sf::VideoMode(width, height), title)
+#endif
 {
     loadFont();
     if (!font.hasGlyph('A'))
@@ -26,7 +30,11 @@ void BucketVisualizerSFML3::loadFont()
 
     for (const auto& path : fontPaths)
     {
+#if SFML_VERSION_MAJOR >= 3
         if (font.openFromFile(path))
+#else
+        if (font.loadFromFile(path))
+#endif
             return;
     }
 }
@@ -45,10 +53,17 @@ void BucketVisualizerSFML3::initialize(const std::vector<MomentPoint>& eulerPoin
     initialized = true;
 }
 
+#if SFML_VERSION_MAJOR >= 3
 std::optional<sf::Event> BucketVisualizerSFML3::pollEvent()
 {
     return window.pollEvent();
 }
+#else
+bool BucketVisualizerSFML3::pollEvent(sf::Event& event)
+{
+    return window.pollEvent(event);
+}
+#endif
 
 bool BucketVisualizerSFML3::isOpen() const
 {

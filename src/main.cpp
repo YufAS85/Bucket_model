@@ -2,6 +2,7 @@
 #include <iostream>
 #include <limits>
 #include <SFML/System.hpp>
+#include <SFML/Config.hpp>
 #include "BucketVisualizer.h"
 #include "EulerODE.h"
 #include "PlotVisualizer.h"
@@ -58,18 +59,34 @@ int main()
     {
         if (graphVisualizer.isOpen())
         {
-            while (const std::optional<sf::Event> event = graphVisualizer.pollEvent())
+#if SFML_VERSION_MAJOR >= 3
+            while (auto event = graphVisualizer.pollEvent())
             {
                 graphVisualizer.handleEvent(*event);
             }
+#else
+            sf::Event event;
+            while (graphVisualizer.pollEvent(event))
+            {
+                graphVisualizer.handleEvent(event);
+            }
+#endif
         }
 
         if (bucketVisualizer.isOpen())
         {
-            while (const std::optional<sf::Event> event = bucketVisualizer.pollEvent())
+#if SFML_VERSION_MAJOR >= 3
+            while (auto event = bucketVisualizer.pollEvent())
             {
                 bucketVisualizer.handleEvent(*event);
             }
+#else
+            sf::Event event;
+            while (bucketVisualizer.pollEvent(event))
+            {
+                bucketVisualizer.handleEvent(event);
+            }
+#endif
         }
 
         float dtFrame = frameClock.restart().asSeconds();

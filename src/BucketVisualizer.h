@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
+#include <SFML/Config.hpp>
 #include <optional>
 #include <string>
 #include <vector>
@@ -13,7 +14,11 @@ public:
 
     void initialize(const std::vector<MomentPoint>& eulerPoints,
                     const std::vector<MomentPoint>& rk4Points);
+#if SFML_VERSION_MAJOR >= 3
     std::optional<sf::Event> pollEvent();
+#else
+    bool pollEvent(sf::Event& event);
+#endif
     bool isOpen() const;
     void close();
     void handleEvent(const sf::Event& event);
