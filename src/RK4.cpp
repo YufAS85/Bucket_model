@@ -1,24 +1,42 @@
-#include "RK4.h"
+#include "rk4.h"
 
-std::vector<MomentPoint> RK4::solution(MomentPoint start, double dt)
+#include <vector>
+
+std::string RK4::getName() const
 {
-    std::vector<MomentPoint> result = {start};
+    return "RK4";
+}
 
-    while (start.y > 0.0)
+std::vector<Point> RK4::solution(Point position, float dt)
+{
+    std::vector<Point> Result = {position};
+
+    while (position.y > 0)
     {
-        double t = start.t;
-        double y = start.y;
-        double half_dt = dt * 0.5;
+        double half_dt = dt / 2.0;
+        double t = position.t;
+        double y = position.y;
 
         double k1 = f({t, y});
         double k2 = f({t + half_dt, y + half_dt * k1});
         double k3 = f({t + half_dt, y + half_dt * k2});
         double k4 = f({t + dt, y + dt * k3});
 
-        start.y = y + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
-        start.t = t + dt;
-        result.push_back(start);
+        double next_y = y + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
+        double next_t = t + dt;
+
+        position.y = next_y;
+        position.t = next_t;
+
+        if (position.y < 0)
+        {
+            double exact_t = findZero(Result.back(), position);
+            Result.push_back({exact_t, 0.0});
+            break;
+        }
+
+        Result.push_back(position);
     }
 
-    return result;
+    return Result;
 }

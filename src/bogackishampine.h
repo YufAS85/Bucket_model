@@ -2,7 +2,7 @@
 
 #include "ode.h"
 
-class RK4 : public ODE
+class BogackiShampine : public ODE
 {
 public:
     std::string getName() const override;

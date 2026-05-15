@@ -1,18 +1,28 @@
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall -Wextra -I./src
-LDFLAGS = -lsfml-graphics -lsfml-window -lsfml-system
-
-SRCS = src/main.cpp src/SolverODE.cpp src/EulerODE.cpp src/RK4.cpp src/PlotVisualizer.cpp src/BucketVisualizer.cpp
+CXXFLAGS = -std=c++17 -O2 -Wall -Wextra
+SRC_DIR = src
+SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(SRCS:.cpp=.o)
-TARGET = model.exe
+
+ifeq ($(OS),Windows_NT)
+    RM = del /Q
+    EXE = .exe
+else
+    RM = rm -f
+    EXE =
+endif
+
+TARGET = bucket$(EXE)
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
-src/%.o: src/%.cpp
+$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJS) $(TARGET)
+	$(RM) $(OBJS) $(TARGET)
+
+.PHONY: all clean

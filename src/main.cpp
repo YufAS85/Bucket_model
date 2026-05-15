@@ -1,112 +1,81 @@
-#include <algorithm>
+#include "adams4.h"
+#include "analytical_solution.h"
+#include "bogackishampine.h"
+#include "gnuplot_generator.h"
+#include "rk4.h"
+
+#include <iomanip>
 #include <iostream>
-#include <limits>
-#include <SFML/System.hpp>
-#include <SFML/Config.hpp>
-#include "BucketVisualizer.h"
-#include "EulerODE.h"
-#include "PlotVisualizer.h"
-#include "RK4.h"
+#include <string>
+#include <vector>
 
 int main()
 {
-    std::cout << "Enter initial time, initial value, and step size (example: 0 100 1): ";
-    double t0 = 0.0;
-    double y0 = 100.0;
-    double dt = 1.0;
+    float init = 15.0f;
+    std::cout << std::fixed << std::setprecision(10);
+    std::cout << "=== LEAKY BUCKET PROBLEM ===" << std::endl;
+    std::cout << "Equation: dy/dt = -sqrt(y)" << std::endl;
+    std::cout << "Enter Initial condition: y(0) = ... (default = 15.0): ";
 
-    if (!(std::cin >> t0 >> y0 >> dt) || dt <= 0.0)
+    std::string input;
+    std::cin >> input;
+    if (!input.empty())
     {
-        std::cerr << "Invalid input. Using default values: t0=0, y0=100, dt=1." << std::endl;
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        t0 = 0.0;
-        y0 = 100.0;
-        dt = 1.0;
+        init = std::stof(input);
     }
 
-    EulerODE eulerSolver;
-    std::vector<MomentPoint> eulerSolution = eulerSolver.solution({t0, y0}, dt);
+    double analytical_time = AnalyticalSolution::emptyingTime(init);
+    std::cout << "Analytical emptying time: t = 2√" << init << " = " << analytical_time << std::endl;
+    std::cout << std::endl;
 
-    std::cout << "\n=== Euler Method Results ===" << std::endl;
-    for (const auto& point : eulerSolution)
+    Point start{0.0, init};
+    std::vector<double> dts = {1.0, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005};
+
+    RK4 rk4;
+    Adams4 adams;
+    BogackiShampine bs;
+
+    GnuplotGenerator generator(analytical_time);
+
+    std::cout << "Collecting data..." << std::endl;
+
+    for (double dt : dts)
     {
-        std::cout << "t=" << point.t << " y=" << point.y << std::endl;
+        auto rk4_sol = rk4.solution(start, dt);
+        auto adams_sol = adams.solution(start, dt);
+        auto bs_sol = bs.solution(start, dt);
+
+        double rk4_error = std::abs(rk4_sol.back().t - analytical_time);
+        double adams_error = std::abs(adams_sol.back().t - analytical_time);
+        double bs_error = std::abs(bs_sol.back().t - analytical_time);
+
+        generator.addData(dt, rk4_error, adams_error, bs_error,
+                          static_cast<int>(rk4_sol.size()),
+                          static_cast<int>(adams_sol.size()),
+                          static_cast<int>(bs_sol.size()));
+
+        std::cout << "dt = " << dt << " -> RK4 error: " << rk4_error
+                  << ", Adams error: " << adams_error
+                  << ", BS error: " << bs_error << std::endl;
     }
 
-    RK4 rk4Solver;
-    std::vector<MomentPoint> rk4Solution = rk4Solver.solution({t0, y0}, dt);
+    generator.saveDataFiles();
+    generator.generateGnuplotScript();
 
-    std::cout << "\n=== RK4 Method Results ===" << std::endl;
-    for (const auto& point : rk4Solution)
-    {
-        std::cout << "t=" << point.t << " y=" << point.y << std::endl;
-    }
+    std::cout << "\nSaving trajectories with dt=0.05..." << std::endl;
+    generator.saveTrajectories(&rk4, start, 0.05, "rk4_trajectory.txt");
+    generator.saveTrajectories(&adams, start, 0.05, "adams4_trajectory.txt");
+    generator.saveTrajectories(&bs, start, 0.05, "bs_trajectory.txt");
 
-    PlotVisualizerSFML3 graphVisualizer(800, 600, "ODE Solver - Numerical Methods Comparison (SFML 3)");
-    BucketVisualizerSFML3 bucketVisualizer(420, 520, "Leaky Bucket Model");
+    double t_max = analytical_time + 0.5;
+    AnalyticalSolution::saveToFile("analytical.txt", init, t_max, 1000);
+    generator.generateTrajectoryScript();
 
-    graphVisualizer.initialize(eulerSolution, rk4Solution);
-    bucketVisualizer.initialize(eulerSolution, rk4Solution);
-
-    size_t currentStep = 0;
-    size_t maxSteps = std::max(eulerSolution.size(), rk4Solution.size());
-    const float secondsPerStep = 0.4f;
-    float frameTimeAccumulator = 0.0f;
-    sf::Clock frameClock;
-
-    while (graphVisualizer.isOpen() || bucketVisualizer.isOpen())
-    {
-        if (graphVisualizer.isOpen())
-        {
-#if SFML_VERSION_MAJOR >= 3
-            while (auto event = graphVisualizer.pollEvent())
-            {
-                graphVisualizer.handleEvent(*event);
-            }
-#else
-            sf::Event event;
-            while (graphVisualizer.pollEvent(event))
-            {
-                graphVisualizer.handleEvent(event);
-            }
-#endif
-        }
-
-        if (bucketVisualizer.isOpen())
-        {
-#if SFML_VERSION_MAJOR >= 3
-            while (auto event = bucketVisualizer.pollEvent())
-            {
-                bucketVisualizer.handleEvent(*event);
-            }
-#else
-            sf::Event event;
-            while (bucketVisualizer.pollEvent(event))
-            {
-                bucketVisualizer.handleEvent(event);
-            }
-#endif
-        }
-
-        float dtFrame = frameClock.restart().asSeconds();
-        frameTimeAccumulator += dtFrame;
-        while (currentStep + 1 < maxSteps && frameTimeAccumulator >= secondsPerStep)
-        {
-            frameTimeAccumulator -= secondsPerStep;
-            ++currentStep;
-        }
-
-        if (!graphVisualizer.isOpen() && bucketVisualizer.isOpen())
-            bucketVisualizer.close();
-        if (!bucketVisualizer.isOpen() && graphVisualizer.isOpen())
-            graphVisualizer.close();
-
-        if (graphVisualizer.isOpen())
-            graphVisualizer.render(eulerSolution, rk4Solution, currentStep);
-        if (bucketVisualizer.isOpen())
-            bucketVisualizer.render(eulerSolution, rk4Solution, currentStep);
-    }
+    std::cout << "\n" << std::string(50, '=') << std::endl;
+    std::cout << "To visualize results, run:" << std::endl;
+    std::cout << "  gnuplot -persist plot_accuracy.gnu" << std::endl;
+    std::cout << "  gnuplot -persist plot_trajectories.gnu" << std::endl;
+    std::cout << std::string(50, '=') << std::endl;
 
     return 0;
 }
